@@ -1,0 +1,16 @@
+# Environment files - copy .env.example and rename per instance
+# e.g. .env.homelab, .env.prod, .env.staging
+.env
+.env.*
+!.env.example
+
+# Port registry — tracks slot assignments per instance
+.ports
+
+# Persistent data - managed by Docker, not git
+volumes/db/data/
+volumes/storage/
+volumes/snippets/
+
+# Don't ignore gitkeep files
+!.gitkeep
