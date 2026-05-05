@@ -75,9 +75,13 @@ services:
     ports:
       - ${KONG_HTTP_PORT}:8000/tcp
       - ${KONG_HTTPS_PORT}:8443/tcp
-    volumes:
-      - ./volumes/api/kong.yml:/home/kong/temp.yml:ro
-      - ./volumes/api/kong-entrypoint.sh:/home/kong/kong-entrypoint.sh:ro
+    configs:
+      - source: kong_yml
+        target: /home/kong/temp.yml
+        mode: 0444
+      - source: kong_entrypoint
+        target: /home/kong/kong-entrypoint.sh
+        mode: 0555
     environment:
       KONG_DATABASE: "off"
       KONG_DECLARATIVE_CONFIG: /usr/local/kong/kong.yml
@@ -459,3 +463,9 @@ services:
 volumes:
   db-config:
   deno-cache:
+
+configs:
+  kong_yml:
+    file: ./volumes/api/kong.yml
+  kong_entrypoint:
+    file: ./volumes/api/kong-entrypoint.sh
