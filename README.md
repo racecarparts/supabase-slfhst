@@ -1,18 +1,14 @@
 # supabase-slfhst
 
-Self-hosted Supabase stack for Portainer. One repo, many instances.
-
-## How it works
-
-Portainer's **Git Stack** feature clones this repo to a temp path on the host and runs `docker compose` from that directory. Relative volume paths like `./volumes/api/kong.yml` work correctly — no manual cloning needed.
-
-Each instance gets its own `.env.*` file with unique secrets and ports. You generate it locally with `generate-env.sh`, then upload it in the Portainer UI when creating the stack.
+Self-hosted Supabase stack. One repo, many instances.
 
 ## Spinning up a new instance
 
-### 1. Generate an env file
+### 1. Clone and generate an env file
 
 ```bash
+git clone <repo-url> supabase-<instance-name>
+cd supabase-<instance-name>
 ./generate-env.sh <instance-name>
 # e.g. ./generate-env.sh homelab
 ```
@@ -24,15 +20,11 @@ Edit the URLs in the generated file before deploying:
 - `SITE_URL` — your app's URL
 - `SMTP_*` — only needed for email auth (password reset, invites)
 
-### 2. Create a Portainer stack
+### 2. Start
 
-1. Portainer → **Stacks** → **Add stack**
-2. Select **Git repository**
-3. Repository URL: your fork of this repo
-4. Compose path: `docker-compose.yml`
-5. **Environment variables** → **Load variables from .env file** → upload your `.env.<instance-name>`
-6. Name the stack to match your instance (e.g. `supabase-homelab`) — this becomes the Docker project name and keeps containers isolated
-7. Deploy
+```bash
+docker compose --env-file .env.<instance-name> up -d
+```
 
 ### 3. Access Studio
 
@@ -42,9 +34,15 @@ http://<host>:<KONG_HTTP_PORT>
 
 Login with `DASHBOARD_USERNAME` / `DASHBOARD_PASSWORD` from your env file (printed at end of `generate-env.sh`).
 
+### Stop / destroy
+
+```bash
+docker compose --env-file .env.<instance-name> down -v
+```
+
 ## Multiple instances on the same host
 
-`generate-env.sh` handles this automatically. Each instance gets a port slot:
+Clone the repo into a separate directory per instance. `generate-env.sh` handles port assignment automatically:
 
 ```
 Slot 0: Kong=8000, HTTPS=8443, Postgres=5432, Pooler=6543
@@ -54,11 +52,22 @@ Slot 1: Kong=8001, HTTPS=8444, Postgres=5433, Pooler=6544
 
 Port assignments are stored in `.ports` (gitignored). Just run the script for each instance — no manual port tracking needed.
 
-Give each stack a unique name in Portainer. Docker namespaces all containers under the stack name, so there are no container name conflicts.
+Each clone is its own Docker project, so containers are fully isolated by name.
 
 ## Upgrading
 
-Update image tags in `docker-compose.yml`, commit and push, then in Portainer: **Stacks** → your stack → **Pull and redeploy**.
+Update image tags in `docker-compose.yml`, pull the latest repo changes, then redeploy:
+
+```bash
+git pull
+docker compose --env-file .env.<instance-name> up -d --pull always
+```
+
+## Using Portainer
+
+If deploying via Portainer, the host running the Portainer agent must have the repo cloned locally. Portainer's remote agent architecture does not transfer repo files to the agent host — bind mounts will fail if Portainer server and agent are on different machines.
+
+On the agent host: clone the repo, generate the env file, then in Portainer create a stack pointing to the local `docker-compose.yml` and upload the `.env.<instance-name>` file.
 
 ## Repo structure
 
