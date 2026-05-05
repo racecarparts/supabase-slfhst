@@ -6,12 +6,17 @@ set -euo pipefail
 # Port assignments are tracked in .ports (gitignored).
 
 if [ "${1:-}" = "-h" ] || [ "${1:-}" = "--help" ]; then
-  echo "Usage: $0 <instance-name> [host]"
+  echo "Usage: $0 [options] [instance-name] [host]"
   echo ""
   echo "Creates .env.<instance-name> with generated secrets and auto-assigned ports."
   echo ""
-  echo "  host   IP or domain of the host running the stack (default: prompt)"
-  echo "         Used for SUPABASE_PUBLIC_URL and API_EXTERNAL_URL."
+  echo "Options:"
+  echo "  --oauth     Prompt to configure OAuth providers (Google, GitHub, Apple)"
+  echo "  --no-oauth  Skip OAuth prompts entirely"
+  echo ""
+  echo "Arguments:"
+  echo "  instance-name   Name for this instance (default: prompt)"
+  echo "  host            IP or domain of the host (default: prompt)"
   echo ""
   echo "Port slots are tracked in .ports (gitignored). Each new instance gets the"
   echo "next available slot, offsetting all ports by 1:"
@@ -21,9 +26,20 @@ if [ "${1:-}" = "-h" ] || [ "${1:-}" = "--help" ]; then
   echo ""
   echo "Examples:"
   echo "  $0 homelab 192.168.1.50"
-  echo "  $0 prod supabase.example.com"
+  echo "  $0 --oauth prod supabase.example.com"
+  echo "  $0 --no-oauth staging"
   exit 0
 fi
+
+# Parse flags
+OAUTH_FLAG=
+while [[ "${1:-}" == --* ]]; do
+  case "$1" in
+    --oauth)    OAUTH_FLAG=yes; shift ;;
+    --no-oauth) OAUTH_FLAG=no;  shift ;;
+    *) echo "Unknown option: $1"; exit 1 ;;
+  esac
+done
 
 command -v openssl >/dev/null || { echo "openssl required"; exit 1; }
 command -v node    >/dev/null || { echo "node required (for JWT generation)"; exit 1; }
@@ -44,6 +60,42 @@ if [ -z "$HOST" ]; then
 fi
 if [ -z "$HOST" ]; then
   HOST="localhost"
+fi
+
+# OAuth providers
+GOOGLE_ENABLED=false; GOOGLE_CLIENT_ID=; GOOGLE_SECRET=
+GITHUB_ENABLED=false; GITHUB_CLIENT_ID=; GITHUB_SECRET=
+APPLE_ENABLED=false;  APPLE_CLIENT_ID=; APPLE_SECRET=
+
+if [ "${OAUTH_FLAG:-}" = "no" ]; then
+  SETUP_OAUTH=n
+elif [ "${OAUTH_FLAG:-}" = "yes" ]; then
+  SETUP_OAUTH=y
+else
+  read -rp "Set up OAuth providers? (y/n) [n]: " SETUP_OAUTH
+fi
+
+if [ "${SETUP_OAUTH:-n}" = "y" ]; then
+  read -rp "  Enable Google? (y/n) [n]: " EN
+  if [ "${EN:-n}" = "y" ]; then
+    GOOGLE_ENABLED=true
+    read -rp "    Google Client ID: " GOOGLE_CLIENT_ID
+    read -rp "    Google Client Secret: " GOOGLE_SECRET
+  fi
+
+  read -rp "  Enable GitHub? (y/n) [n]: " EN
+  if [ "${EN:-n}" = "y" ]; then
+    GITHUB_ENABLED=true
+    read -rp "    GitHub Client ID: " GITHUB_CLIENT_ID
+    read -rp "    GitHub Client Secret: " GITHUB_SECRET
+  fi
+
+  read -rp "  Enable Apple? (y/n) [n]: " EN
+  if [ "${EN:-n}" = "y" ]; then
+    APPLE_ENABLED=true
+    read -rp "    Apple Client ID (bundle ID): " APPLE_CLIENT_ID
+    read -rp "    Apple Client Secret (signed JWT): " APPLE_SECRET
+  fi
 fi
 PORTS_FILE=".ports"
 
@@ -207,6 +259,23 @@ SMTP_SENDER_NAME=Supabase
 
 ENABLE_PHONE_SIGNUP=false
 ENABLE_PHONE_AUTOCONFIRM=false
+
+
+############
+# OAuth Providers
+############
+
+GOOGLE_ENABLED=${GOOGLE_ENABLED}
+GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+GOOGLE_SECRET=${GOOGLE_SECRET}
+
+GITHUB_ENABLED=${GITHUB_ENABLED}
+GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
+GITHUB_SECRET=${GITHUB_SECRET}
+
+APPLE_ENABLED=${APPLE_ENABLED}
+APPLE_CLIENT_ID=${APPLE_CLIENT_ID}
+APPLE_SECRET=${APPLE_SECRET}
 
 
 ############
