@@ -23,7 +23,7 @@ awk '{
     rest = substr(rest, RSTART + RLENGTH)
   }
   print result rest
-}' /home/kong/temp.yml > "$KONG_DECLARATIVE_CONFIG"
+}' /home/kong/api/kong.yml > "$KONG_DECLARATIVE_CONFIG"
 
 sed -i '/^[[:space:]]*- key:[[:space:]]*$/d' "$KONG_DECLARATIVE_CONFIG"
 
