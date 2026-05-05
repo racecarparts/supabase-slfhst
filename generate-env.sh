@@ -5,10 +5,13 @@ set -euo pipefail
 # Creates .env.<instance-name> with generated secrets and auto-assigned ports.
 # Port assignments are tracked in .ports (gitignored).
 
-if [ $# -lt 1 ] || [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
-  echo "Usage: $0 <instance-name>"
+if [ "${1:-}" = "-h" ] || [ "${1:-}" = "--help" ]; then
+  echo "Usage: $0 <instance-name> [host]"
   echo ""
   echo "Creates .env.<instance-name> with generated secrets and auto-assigned ports."
+  echo ""
+  echo "  host   IP or domain of the host running the stack (default: prompt)"
+  echo "         Used for SUPABASE_PUBLIC_URL and API_EXTERNAL_URL."
   echo ""
   echo "Port slots are tracked in .ports (gitignored). Each new instance gets the"
   echo "next available slot, offsetting all ports by 1:"
@@ -16,23 +19,32 @@ if [ $# -lt 1 ] || [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
   echo "  Slot 1: Kong=8001, HTTPS=8444, Postgres=5433, Pooler=6544"
   echo "  ..."
   echo ""
-  echo "After generation, edit the URLs in .env.<instance-name>:"
-  echo "  SUPABASE_PUBLIC_URL / API_EXTERNAL_URL — your host IP or domain"
-  echo "  SITE_URL                               — your app's URL"
-  echo "  SMTP_*                                 — only needed for email auth"
-  echo ""
   echo "Examples:"
-  echo "  $0 homelab"
-  echo "  $0 prod"
-  echo "  $0 staging"
-  [ $# -lt 1 ] && exit 1 || exit 0
+  echo "  $0 homelab 192.168.1.50"
+  echo "  $0 prod supabase.example.com"
+  exit 0
 fi
 
 command -v openssl >/dev/null || { echo "openssl required"; exit 1; }
 command -v node    >/dev/null || { echo "node required (for JWT generation)"; exit 1; }
 
-NAME="$1"
+NAME="${1:-}"
+if [ -z "$NAME" ]; then
+  read -rp "Instance name (e.g. homelab, prod): " NAME
+fi
+if [ -z "$NAME" ]; then
+  echo "Instance name required."
+  exit 1
+fi
 OUTFILE=".env.${NAME}"
+
+HOST="${2:-}"
+if [ -z "$HOST" ]; then
+  read -rp "Host IP or domain for this instance (e.g. 192.168.1.50 or supabase.example.com): " HOST
+fi
+if [ -z "$HOST" ]; then
+  HOST="localhost"
+fi
 PORTS_FILE=".ports"
 
 if [ -f "$OUTFILE" ]; then
@@ -134,9 +146,9 @@ S3_PROTOCOL_ACCESS_KEY_SECRET=${S3_KEY_SECRET}
 # URLs — EDIT THESE before deploying
 ############
 
-SUPABASE_PUBLIC_URL=http://localhost:${KONG_HTTP_PORT}
-API_EXTERNAL_URL=http://localhost:${KONG_HTTP_PORT}
-SITE_URL=http://localhost:3000
+SUPABASE_PUBLIC_URL=http://${HOST}:${KONG_HTTP_PORT}
+API_EXTERNAL_URL=http://${HOST}:${KONG_HTTP_PORT}
+SITE_URL=http://${HOST}:3000
 
 
 ############
@@ -248,9 +260,5 @@ EOF
 
 echo "Created: $OUTFILE"
 echo ""
-echo "Before deploying, replace 'localhost' in URLs with your actual host IP or domain:"
-echo "  SUPABASE_PUBLIC_URL"
-echo "  API_EXTERNAL_URL"
-echo "  SITE_URL"
-echo ""
 echo "Dashboard login: supabase / ${DASHBOARD_PASSWORD}"
+echo "Studio URL:      http://${HOST}:${KONG_HTTP_PORT}"
