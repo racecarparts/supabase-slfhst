@@ -18,6 +18,12 @@ fi
 
 if [ "${2:-}" = "--destroy" ]; then
   docker compose --env-file "$ENV_FILE" down -v
+  # Bind mount dirs are not removed by down -v — wipe via a throwaway container
+  # to avoid needing sudo (postgres data is owned by container uid)
+  docker run --rm \
+    -v "$(pwd)/volumes/db/data:/data/db" \
+    -v "$(pwd)/volumes/storage:/data/storage" \
+    alpine sh -c "rm -rf /data/db/* /data/db/.[!.]* /data/storage/* /data/storage/.[!.]*"
 else
   docker compose --env-file "$ENV_FILE" down
 fi
