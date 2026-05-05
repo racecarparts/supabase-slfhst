@@ -82,7 +82,7 @@ echo "  Pooler:     ${POOLER_PORT}"
 echo ""
 echo "Generating secrets..."
 
-POSTGRES_PASSWORD=$(openssl rand -base64 32 | tr -d '\n=')
+POSTGRES_PASSWORD=$(openssl rand -base64 32 | tr -d '\n=+/')
 JWT_SECRET=$(openssl rand -base64 48 | tr -d '\n=')
 SECRET_KEY_BASE=$(openssl rand -base64 64 | tr -d '\n=')
 VAULT_ENC_KEY=$(openssl rand -base64 32 | tr -d '\n=+/' | cut -c1-32)
